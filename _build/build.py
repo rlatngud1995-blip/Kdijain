@@ -60,6 +60,7 @@ def head(title, desc, rel_url, up, place=None, region="KR-44", jsonld=None, og_i
   <meta property="og:image" content="{SITE}/{og_img}">
   <meta property="og:locale" content="ko_KR">
   <meta name="twitter:card" content="summary_large_image">
+  <link rel="alternate" type="application/rss+xml" title="{BRAND}" href="{SITE}/rss.xml">
   <link rel="icon" href="{up}favicon.ico" sizes="any">
   <link rel="icon" href="{up}favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="{up}apple-touch-icon.png">
@@ -311,7 +312,55 @@ def fill(t, a, cat):
     return t.format(loc=loc_full(a), dong=a[2], city=c["name"], b=BRAND, p=PHONE, ceo=CEO, gu=(a[3] + " ") if a[3] else "")
 
 
-# ---------- 동 페이지 ----------
+# ---------- 동 페이지 (페이지마다 다른 구성: 유사 문서 방지) ----------
+import hashlib, random as _random
+
+
+def _rng(*key):
+    return _random.Random(int(hashlib.md5("|".join(key).encode()).hexdigest()[:12], 16))
+
+
+H1_FMT = {
+    "residential": ["{dong}<br>주거공간 인테리어", "{dong} 아파트<br>인테리어·리모델링", "{dong}<br>집 인테리어", "{dong}<br>아파트·주택 인테리어"],
+    "commercial": ["{dong}<br>상업공간 인테리어", "{dong} 상가<br>인테리어", "{dong}<br>매장·카페 인테리어", "{dong}<br>상가·매장 인테리어"],
+}
+DESC_FMT = {
+    "residential": [
+        "{loc} 아파트·주택 인테리어 {b}. 전체 리모델링부터 욕실·주방 부분 시공까지 대표가 직접 실측하고 설계·시공합니다. 상담 {p}",
+        "{dong} 주거공간 인테리어는 {b}. 우물천장 간접조명, 욕실 리모델링, 수납 설계까지 항목별 견적으로 안내합니다. {p}",
+        "{loc} 집 인테리어 상담. 입주 전 리모델링, 살면서 하는 부분 공사 모두 {b} 대표가 직접 현장을 봅니다. 전화 {p}",
+        "{dong} 아파트 리모델링·주택 인테리어 업체 {b}. 실측 후 디자인과 공정 일정을 먼저 정리해 드립니다. 상담 {p}",
+    ],
+    "commercial": [
+        "{loc} 상가·카페·음식점 인테리어 {b}. 업종과 손님 동선을 먼저 보고 설계부터 시공까지 진행합니다. 상담 {p}",
+        "{dong} 상업공간 인테리어는 {b}. 오픈 일정에 맞춘 공정표와 항목별 견적으로 매장을 준비합니다. {p}",
+        "{loc} 매장 인테리어 상담. 헤어샵, 필라테스, 사무실, 외관 리모델링까지 {b} 대표가 직접 실측합니다. 전화 {p}",
+        "{dong} 상가 리모델링·카페 인테리어 업체 {b}. 설비, 조명, 외관까지 한 번에 맡길 수 있습니다. 상담 {p}",
+    ],
+}
+SEC_TITLES = {
+    "scope": ["{dong} {s} 시공 분야", "{dong}에서 맡길 수 있는 공사", "{s} 인테리어, 이런 공사를 합니다", "{dong} 현장 시공 범위"],
+    "guide": ["{dong} {s} 인테리어, 이렇게 준비하세요", "{dong} 인테리어 전에 알아 두면 좋은 것", "상담 전에 함께 확인하는 내용", "{dong} {s} 인테리어 체크포인트"],
+    "works": ["{s} 시공 사례", "{b}이 시공한 {s} 현장", "직접 설계·시공한 {s}", "사진으로 보는 {s} 인테리어"],
+    "process": ["{dong} 인테리어 진행 과정", "상담부터 완공까지", "{dong} 현장은 이렇게 진행됩니다", "공사 순서 한눈에 보기"],
+}
+SEC_SUB = {
+    "guide": ["{loc} 현장을 상담할 때 함께 확인하는 내용입니다.", "실측 전에 알아 두시면 상담이 빨라집니다.", "{dong} 현장에서 자주 받는 질문을 정리했습니다."],
+    "works": ["사진을 누르면 크게 볼 수 있습니다.", "{b}이 설계하고 시공한 현장입니다. 사진을 누르면 크게 볼 수 있습니다.", "같은 팀이 디자인하고 마감까지 시공했습니다."],
+    "process": ["첫 통화부터 완공 후 점검까지 같은 사람이 끝까지 챙깁니다.", "공정이 바뀔 때마다 진행 상황을 공유합니다.", "각 단계마다 확인할 내용을 먼저 안내합니다."],
+    "scope": ["{loc} 현장도 대표가 직접 방문해 실측하고, 디자인부터 마감까지 한 팀이 진행합니다.", "필요한 공정만 골라 부분 시공으로 맡겨도 됩니다.", "{dong} 현장 상황을 보고 꼭 필요한 공사부터 제안합니다."],
+}
+STEP_V = [
+    ("전화 상담", ["원하는 공간, 예산, 일정을 들려주세요.", "평수와 공사 범위, 희망 일정을 알려주세요.", "참고 사진이 있으면 함께 보내 주세요."]),
+    ("현장 실측", ["{dong} 현장에 직접 방문해 구조와 상태를 확인합니다.", "대표가 {dong} 현장을 직접 재고 설비 상태를 봅니다.", "현장 치수와 배관·전기 위치를 확인합니다."]),
+    ("디자인과 견적", ["디자인과 항목별 견적을 함께 드립니다.", "공정별로 나눈 견적과 디자인 시안을 안내합니다.", "예산에 맞춰 조정할 항목을 함께 정합니다."]),
+    ("시공", ["공정마다 진행 상황을 공유합니다.", "철거부터 마감까지 공정표대로 진행합니다.", "공정이 바뀔 때마다 사진으로 알려드립니다."]),
+    ("완공과 점검", ["마감을 함께 확인한 뒤 인도합니다.", "마감 상태를 같이 둘러보고 인도합니다.", "완공 후 사용하며 불편한 점도 다시 살핍니다."]),
+]
+EXTRA_V = ["{dong}은 {f}입니다.", "{f}인 {dong}도 자주 상담합니다.", "{dong}({f}) 현장도 같은 방식으로 진행합니다."]
+NEIGH_V = ["{dong}과 같은 {g}의 {n}도 같은 조건으로 상담하고 시공합니다.", "가까운 {n}에서도 시공 상담을 받고 있습니다.", "{g} 안에서는 {n} 현장도 함께 다닙니다."]
+
+
 def dong_page(idx, a, cat):
     city = CITIES[a[0]]
     C = CATS[cat]
@@ -320,38 +369,50 @@ def dong_page(idx, a, cat):
     up = "../../../../"
     page_url = f"{SITE}/{rel}"
     loc = loc_full(a)
+    R = _rng(a[1], cat)
     place = f"{city['prov_full']} {city['full']} {a[3] + ' ' if a[3] else ''}{a[2]}"
-    kwmain = "상가·카페 인테리어" if cat == "commercial" else "아파트 리모델링·욕실 인테리어"
-    title = fill(TITLES[cat][idx % len(TITLES[cat])], a, cat)
-    desc = (f"{loc} {C['name']} {BRAND}. " +
-            ("상가, 카페, 음식점, 사무실, 헤어샵 인테리어를 대표가 직접 상담하고 실측 후 설계·시공합니다. "
-             if cat == "commercial" else
-             "아파트·주택 리모델링, 욕실, 주방, 부분 시공을 대표가 직접 상담하고 실측 후 설계·시공합니다. ")
-            + f"상담 {PHONE}")
-    intro = fill(INTRO[cat][idx % 4], a, cat)
+    f = lambda t: fill(t, a, cat).replace("{s}", C["short"])
+    fs = lambda t: f(t.replace("{s}", C["short"]))
+
+    title = fill(TITLES[cat][(idx + R.randrange(5)) % len(TITLES[cat])], a, cat)
+    desc = fill(R.choice(DESC_FMT[cat]), a, cat)
+    h1 = R.choice(H1_FMT[cat]).format(dong=E(a[2]))
+    intros = INTRO[cat][:]
+    R.shuffle(intros)
+    intro = fill(intros[0], a, cat)
     extra = ""
     if a[4]:
-        extra += f" {a[2]}은 {a[4]}입니다."
+        extra += " " + R.choice(EXTRA_V).format(dong=a[2], f=a[4])
     memo = a[5] if cat == "residential" else a[6]
     if memo:
         extra += f" {BRAND}은 {a[2]}에서 {memo}"
-    photos = photo_set(cat, idx * 2, 6)
+
+    ph = C["photos"][:]
+    R.shuffle(ph)
+    photos = ph[:R.choice([3, 4, 6])]
     hero = photos[0]
-    qpool = FAQ[cat] + FAQ_MORE[cat]
-    rest = list(range(2, len(qpool)))
-    pick = [0, 1] + [rest[(idx * 2 + k) % len(rest)] for k in range(3)]
-    qas = [(fill(qpool[i][0], a, cat), fill(qpool[i][1], a, cat)) for i in pick]
-    g = GUIDE[cat]
-    guide = [g[(idx * 3 + k) % len(g)] for k in range(4)]
-    guide_html = "".join(f'<li><h3>{E(fill(t, a, cat))}</h3><p>{E(fill(x, a, cat))}</p></li>' for t, x in guide)
-    why = [WHY[(idx + k) % len(WHY)] for k in range(3)]
-    why_html = "".join(f'<li><b>{E(t)}</b><span>{E(fill(x, a, cat))}</span></li>' for t, x in why)
+
+    qpool = FAQ[cat][1:] + FAQ_MORE[cat]
+    R.shuffle(qpool)
+    qas = [(fill(q, a, cat), fill(x, a, cat)) for q, x in [FAQ[cat][0]] + qpool[:R.choice([3, 4])]]
+
+    g = GUIDE[cat][:]
+    R.shuffle(g)
+    guide_html = "".join(f'<li><h3>{E(fill(t, a, cat))}</h3><p>{E(fill(x, a, cat))}</p></li>' for t, x in g[:R.choice([3, 4])])
+    w = WHY[:]
+    R.shuffle(w)
+    why_html = "".join(f'<li><b>{E(t)}</b><span>{E(fill(x, a, cat))}</span></li>' for t, x in w[:3])
+    items = C["items"][:]
+    R.shuffle(items)
+    items_html = "".join(f"<li>{E(i)}</li>" for i in items)
+    steps_html = "".join(f'<li><h3>{t}</h3><p>{E(R.choice(v).format(dong=a[2]))}</p></li>' for t, v in STEP_V)
+
     same_gu = [x for x in AREAS if x[0] == a[0] and x[3] == a[3] and x[1] != a[1]]
     pos = [x[1] for x in AREAS].index(a[1])
-    neigh = sorted(same_gu, key=lambda x: abs([y[1] for y in AREAS].index(x[1]) - pos))[:3]
+    neigh = sorted(same_gu, key=lambda x: abs([y[1] for y in AREAS].index(x[1]) - pos))[:R.choice([2, 3])]
     neigh_txt = ", ".join(f'<a class="text-link" href="{up}{url_dong(x, cat)}">{x[2]}</a>' for x in neigh)
     gu_label = f"{city['name']} {a[3]}" if a[3] else city['name']
-    same_city = [x for x in AREAS if x[0] == a[0] and x[1] != a[1]]
+    near_links = sorted([x for x in AREAS if x[0] == a[0] and x[1] != a[1]], key=lambda x: abs([y[1] for y in AREAS].index(x[1]) - pos))[:6]
     crumbs = [("홈", ""), ("지역별 인테리어", "area/"), (f"{city['name']} {C['short']}", url_city(a[0], cat)), (f"{a[2]} {C['short']} 인테리어", None)]
     crumbs_view = [(n, up + u if u is not None else None) for n, u in crumbs]
 
@@ -370,8 +431,41 @@ def dong_page(idx, a, cat):
         faq_ld(qas, page_url),
     ]}
 
-    nearby = "".join(f'<li><a href="{up}{url_dong(x, cat)}">{x[2]} {C["short"]} 인테리어</a></li>' for x in same_city)
-    items = "".join(f"<li>{E(i)}</li>" for i in C["items"])
+    T = lambda k: E(fs(R.choice(SEC_TITLES[k])))
+    S = lambda k: E(fs(R.choice(SEC_SUB[k])))
+    blocks = {
+        "scope": f"""    <section class="sec" id="scope">
+      <div class="wrap scope-grid">
+        <div><h2>{T('scope')}</h2><p class="muted">{S('scope')}</p></div>
+        <ul class="svc-list big">{items_html}</ul>
+      </div>
+      <div class="wrap"><ul class="why-list">{why_html}</ul></div>
+    </section>
+""",
+        "guide": f"""    <section class="sec sec-tint" id="guide">
+      <div class="wrap">
+        <div class="sec-head"><h2>{T('guide')}</h2><p>{S('guide')}</p></div>
+        <ul class="guide-list">{guide_html}</ul>
+      </div>
+    </section>
+""",
+        "works": f"""    <section class="sec" id="works">
+      <div class="wrap">
+        <div class="sec-head"><h2>{T('works')}</h2><p>{S('works')}</p></div>
+        {gallery(photos, up, a[2] + ' ')}
+      </div>
+    </section>
+""",
+        "process": f"""    <section class="sec" id="process">
+      <div class="wrap">
+        <div class="sec-head"><h2>{T('process')}</h2><p>{S('process')}</p></div>
+        <ol class="steps">{steps_html}</ol>
+      </div>
+    </section>
+""",
+    }
+    order = ["scope", "guide", "works", "process"]
+    R.shuffle(order)
 
     body = f"""  <main>
     <section class="hero area-hero">
@@ -381,7 +475,7 @@ def dong_page(idx, a, cat):
           <div class="hero-copy">
             <div>
               <p class="hero-area">{E(city['prov'])} {E(loc)}</p>
-              <h1>{E(a[2])}<br>{E(C['name'])}</h1>
+              <h1>{h1}</h1>
               <p class="hero-lede">{E(intro)}{E(extra)}</p>
               <div class="hero-actions">
                 <a href="tel:{PHONE}" class="btn btn-main">전화 상담 {PHONE}</a>
@@ -389,55 +483,19 @@ def dong_page(idx, a, cat):
               </div>
             </div>
           </div>
-          <div class="area-hero-photo photo"><img src="{up}images/{hero[0]}" width="{hero[1]}" height="{hero[2]}" alt="{BRAND} {E(a[2])} {E(C['name'])} {E(hero[5])}" fetchpriority="high"></div>
+          <div class="area-hero-photo photo"><img src="{up}images/{hero[0]}" width="{hero[1]}" height="{hero[2]}" alt="{BRAND} {E(a[2])} {E(C['name'])} 사례, {E(hero[5])}" fetchpriority="high"></div>
         </div>
       </div>
     </section>
 
-    <section class="sec" id="scope">
-      <div class="wrap scope-grid">
-        <div>
-          <h2>{E(a[2])} {E(C['short'])} 시공 분야</h2>
-          <p class="muted">{E(loc)} 현장도 대표가 직접 방문해 실측하고, 디자인부터 마감까지 한 팀이 진행합니다.</p>
-        </div>
-        <ul class="svc-list big">{items}</ul>
-      </div>
-      <div class="wrap">
-        <ul class="why-list">{why_html}</ul>
-      </div>
-    </section>
-
-    <section class="sec sec-tint" id="guide">
-      <div class="wrap">
-        <div class="sec-head"><h2>{E(a[2])} {E(C['short'])} 인테리어, 이렇게 준비하세요</h2><p>{E(loc)} 현장을 상담할 때 함께 확인하는 내용입니다.</p></div>
-        <ul class="guide-list">{guide_html}</ul>
-      </div>
-    </section>
-
-    <section class="sec" id="works">
-      <div class="wrap">
-        <div class="sec-head">
-          <h2>{E(C['short'])} 시공 사례</h2>
-          <p>{BRAND}이 설계하고 시공한 {E(C['short'])} 현장입니다. 사진을 누르면 크게 볼 수 있습니다.</p>
-        </div>
-        {gallery(photos, up)}
-      </div>
-    </section>
-
-    <section class="sec" id="process">
-      <div class="wrap">
-        <div class="sec-head"><h2>{E(a[2])} 인테리어 진행 과정</h2><p>첫 통화부터 완공 후 점검까지, 같은 사람이 끝까지 챙깁니다.</p></div>
-{STEPS.format(dong=a[2])}
-      </div>
-    </section>
-
+{''.join(blocks[k] for k in order)}
 {faq_block(qas)}
     <section class="sec sec-tint" id="nearby">
       <div class="wrap">
-        <p class="neigh">{E(a[2])}과 같은 {E(gu_label)}의 {neigh_txt}도 같은 조건으로 상담하고 시공합니다.</p>
-        <div class="sec-head"><h2>{E(city['name'])} 다른 지역 {E(C['short'])} 인테리어</h2>
+        <p class="neigh">{(R.choice(NEIGH_V).format(dong=E(a[2]), g=E(gu_label), n=neigh_txt)) if neigh else ''}</p>
+        <div class="sec-head"><h2>{E(city['name'])} 가까운 지역 {E(C['short'])} 인테리어</h2>
           <p><a class="text-link" href="{up}{url_dong(a, other)}">{E(a[2])} {E(CATS[other]['name'])}</a> · <a class="text-link" href="{up}{url_city(a[0], cat)}">{E(city['name'])} {E(C['name'])} 전체</a></p></div>
-        <ul class="chip-links">{nearby}</ul>
+        <ul class="chip-links">{''.join(f'<li><a href="{up}{url_dong(x, cat)}">{x[2]}</a></li>' for x in near_links)}</ul>
       </div>
     </section>
 
@@ -652,6 +710,20 @@ def main():
         sm.append("  </url>")
     sm.append("</urlset>")
     write("sitemap.xml", "\n".join(sm) + "\n")
+
+    # rss.xml (네이버 서치어드바이저 RSS 제출용)
+    def _t(u):
+        h = open(os.path.join(ROOT, u, "index.html"), encoding="utf-8").read()
+        t = re.search(r"<title>(.*?)</title>", h, re.S).group(1)
+        d = re.search(r'<meta name="description" content="(.*?)"', h).group(1)
+        return t, d
+    items = []
+    for u in urls:
+        t, d = _t(u)
+        items.append(f"  <item><title>{t}</title><link>{SITE}/{u}</link><guid>{SITE}/{u}</guid><description>{d}</description><pubDate>Tue, 24 Nov 2026 00:00:00 +0900</pubDate></item>")
+    write("rss.xml", '<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel>\n'
+          f"  <title>{BRAND}</title><link>{SITE}/</link><description>천안·아산·당진·평택 주거공간·상업공간 인테리어</description><language>ko</language>\n"
+          + "\n".join(items) + "\n</channel></rss>\n")
 
     # llms.txt
     lines = [f"# {BRAND} (K DESIGN, K디자인)", "",
