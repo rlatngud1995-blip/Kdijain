@@ -390,6 +390,10 @@ def dong_page(idx, a, cat):
     ph = C["photos"][:]
     R.shuffle(ph)
     photos = ph[:R.choice([3, 4, 6])]
+    local = LOCAL_PHOTOS.get((a[1], cat), [])
+    if local:
+        lp = [p for f in local for p in C["photos"] if p[0] == f]
+        photos = lp + [p for p in ph if p[0] not in local][:3]
     hero = photos[0]
 
     qpool = FAQ[cat][1:] + FAQ_MORE[cat]
