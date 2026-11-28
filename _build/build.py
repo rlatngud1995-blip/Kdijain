@@ -326,10 +326,51 @@ def _rng(*key):
     return _random.Random(int(hashlib.md5("|".join(key).encode()).hexdigest()[:12], 16))
 
 
+# 동 페이지 큰 제목: 동마다 다른 문구 (인접한 동끼리 겹치지 않도록 순서대로 배정)
 H1_FMT = {
-    "residential": ["{dong}<br>주거공간 인테리어", "{dong} 아파트<br>인테리어·리모델링", "{dong}<br>집 인테리어", "{dong}<br>아파트·주택 인테리어"],
-    "commercial": ["{dong}<br>상업공간 인테리어", "{dong} 상가<br>인테리어", "{dong}<br>매장·카페 인테리어", "{dong}<br>상가·매장 인테리어"],
+    "residential": [
+        "{dong}<br>아파트 인테리어",
+        "{dong} 아파트<br>전체 리모델링",
+        "{dong}<br>욕실·주방 리모델링",
+        "{dong}<br>입주 전 인테리어",
+        "{dong}<br>구축 아파트 리모델링",
+        "{dong} 주택·빌라<br>인테리어",
+        "{dong}<br>부분 인테리어 시공",
+        "{dong}<br>살면서 하는 리모델링",
+        "{dong} 아파트<br>인테리어 업체",
+        "{dong}<br>주거공간 인테리어",
+        "{dong}<br>거실·우물천장 인테리어",
+        "{dong}<br>집 인테리어 상담",
+    ],
+    "commercial": [
+        "{dong}<br>상가 인테리어",
+        "{dong}<br>카페 인테리어",
+        "{dong}<br>음식점 인테리어",
+        "{dong}<br>매장 리모델링",
+        "{dong}<br>사무실 인테리어",
+        "{dong}<br>미용실·헤어샵 인테리어",
+        "{dong}<br>창업 인테리어",
+        "{dong}<br>상업공간 인테리어",
+        "{dong} 상가<br>외관 리모델링",
+        "{dong}<br>필라테스·학원 인테리어",
+        "{dong} 매장<br>인테리어 업체",
+        "{dong}<br>점포 인테리어",
+    ],
 }
+# 실제 시공 현장이 있는 동은 그 내용으로 제목을 정함
+H1_FIXED = {
+    ("baekseok-dong", "commercial"): "{dong}<br>미용실 인테리어",
+    ("baekseok-dong", "residential"): "{dong}<br>아이파크 아파트 인테리어",
+}
+# 브라우저·검색결과 제목: 큰 제목 문구 + 지역 + 상호
+TITLE_FMT = [
+    "{city} {h} | {b}",
+    "{h} | {city} {gu}{b}",
+    "{city} {gu}{h} 전문 {b}",
+    "{h} - {city} {b}",
+]
+
+
 DESC_FMT = {
     "residential": [
         "{loc} 아파트·주택 인테리어 {b}. 전체 리모델링부터 욕실·주방 부분 시공까지 대표가 직접 실측하고 설계·시공합니다. 상담 {p}",
@@ -380,9 +421,14 @@ def dong_page(idx, a, cat):
     f = lambda t: fill(t, a, cat).replace("{s}", C["short"])
     fs = lambda t: f(t.replace("{s}", C["short"]))
 
-    title = fill(TITLES[cat][(idx + R.randrange(5)) % len(TITLES[cat])], a, cat)
+    pool = H1_FMT[cat]
+    h1_raw = H1_FIXED.get((a[1], cat)) or pool[(idx * 5 + (7 if cat == "commercial" else 0)) % len(pool)]
+    h1 = h1_raw.format(dong=E(a[2]))
+    h_plain = h1_raw.replace("<br>", " ").format(dong=a[2])
+    title = TITLE_FMT[idx % len(TITLE_FMT)].format(h=h_plain, city=city["name"], gu=(a[3] + " ") if a[3] else "", b=BRAND)
+    R.randrange(5)  # 기존 페이지 구성 순서를 유지하기 위한 자리
     desc = fill(R.choice(DESC_FMT[cat]), a, cat)
-    h1 = R.choice(H1_FMT[cat]).format(dong=E(a[2]))
+    R.choice(pool)
     intros = INTRO[cat][:]
     R.shuffle(intros)
     intro = fill(intros[0], a, cat)
