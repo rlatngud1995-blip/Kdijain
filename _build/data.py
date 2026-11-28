@@ -6,7 +6,7 @@ PHONE_INTL = "+82-10-6852-0300"
 BRAND = "케이디자인"
 CEO = "김명구"
 SITE = "https://www.kdjardin.com"   # 끝에 / 없이
-TODAY = "2026-11-24"
+TODAY = "2026-11-28"
 
 # (파일, 가로, 세로, 짧은 제목, 설명, alt)
 RES = [

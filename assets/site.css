@@ -300,3 +300,8 @@
     .guide-list p { color: var(--muted); margin-top: 6px; font-size: 15px; }
     .neigh { margin-bottom: 28px; color: var(--muted); }
     @media (max-width: 1000px) { .why-list, .guide-list { grid-template-columns: 1fr; } }
+
+/* 지역 안내 문단 */
+.prose { max-width: 46em; }
+.prose h2 { margin-bottom: 20px; }
+.prose p { color: var(--muted); line-height: 1.85; margin-top: 14px; }

@@ -23,6 +23,7 @@
       var b = e.target.closest('.work button');
       if (!b) return;
       var img = document.getElementById('viewerImg');
+      if (!img) { img = document.createElement('img'); img.id = 'viewerImg'; v.insertBefore(img, v.firstChild); }
       img.src = b.dataset.full; img.alt = b.querySelector('img').alt;
       document.getElementById('viewerCap').textContent = b.dataset.cap;
       v.showModal();

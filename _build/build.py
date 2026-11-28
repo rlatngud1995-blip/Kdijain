@@ -19,6 +19,8 @@ def write(rel, text):
 
 def loc_full(a):
     c = CITIES[a[0]]
+    if a[2] == c["name"]:
+        return c["name"]
     return " ".join(x for x in [c["name"], a[3], a[2]] if x)
 
 
@@ -105,7 +107,6 @@ def footer(up):
   </footer>
   <a href="tel:{PHONE}" class="callbar">전화 상담 {PHONE}</a>
   <dialog class="viewer" id="viewer" aria-label="사진 크게 보기">
-    <img src="" alt="" id="viewerImg">
     <p><span id="viewerCap"></span><button type="button" id="viewerClose">닫기</button></p>
   </dialog>
   <script src="{up}assets/site.js"></script>
@@ -307,8 +308,13 @@ FAQ_MORE = {
 }
 
 
+from content import INTRO, GUIDE, WHY, TYPE_NOTE, CITY_NOTE, FAQ_ANS_V  # 문구 모음 (위 기본값을 덮어씀)
+
+
 def fill(t, a, cat):
     c = CITIES[a[0]]
+    if isinstance(t, list):
+        t = t[0]
     return t.format(loc=loc_full(a), dong=a[2], city=c["name"], b=BRAND, p=PHONE, ceo=CEO, gu=(a[3] + " ") if a[3] else "")
 
 
@@ -398,14 +404,21 @@ def dong_page(idx, a, cat):
 
     qpool = FAQ[cat][1:] + FAQ_MORE[cat]
     R.shuffle(qpool)
-    qas = [(fill(q, a, cat), fill(x, a, cat)) for q, x in [FAQ[cat][0]] + qpool[:R.choice([3, 4])]]
+    qas = [(fill(q, a, cat), fill(R.choice([x] + FAQ_ANS_V.get(q, [])), a, cat)) for q, x in [FAQ[cat][0]] + qpool[:R.choice([3, 4])]]
 
     g = GUIDE[cat][:]
     R.shuffle(g)
-    guide_html = "".join(f'<li><h3>{E(fill(t, a, cat))}</h3><p>{E(fill(x, a, cat))}</p></li>' for t, x in g[:R.choice([3, 4])])
+    guide_html = "".join(f'<li><h3>{E(fill(t, a, cat))}</h3><p>{E(fill(R.choice(x), a, cat))}</p></li>' for t, x in g[:R.choice([4, 5])])
     w = WHY[:]
     R.shuffle(w)
-    why_html = "".join(f'<li><b>{E(t)}</b><span>{E(fill(x, a, cat))}</span></li>' for t, x in w[:3])
+    why_html = "".join(f'<li><b>{E(t)}</b><span>{E(fill(R.choice(x), a, cat))}</span></li>' for t, x in w[:3])
+    kind = "town" if a[1].endswith(("-eup", "-myeon")) else "city"
+    tn = TYPE_NOTE[(cat, kind)][:]
+    R.shuffle(tn)
+    local_paras = [fill(intros[1], a, cat), fill(tn[0], a, cat)]
+    local_paras.append(CITY_NOTE[a[0]])
+    R.shuffle(local_paras)
+    local_html = "".join(f"<p>{E(x)}</p>" for x in local_paras)
     items = C["items"][:]
     R.shuffle(items)
     items_html = "".join(f"<li>{E(i)}</li>" for i in items)
@@ -468,7 +481,14 @@ def dong_page(idx, a, cat):
     </section>
 """,
     }
-    order = ["scope", "guide", "works", "process"]
+    blocks["local"] = f"""    <section class="sec" id="local">
+      <div class="wrap"><div class="prose">
+        <h2>{E(R.choice(["{d} {s} 인테리어 안내", "{d}에서 {s} 인테리어를 준비한다면", "{d} 현장 상담 안내", "{c} {d} {s} 인테리어"]).format(d=a[2], s=C["short"], c=city["name"]))}</h2>
+        {local_html}
+      </div></div>
+    </section>
+"""
+    order = ["scope", "guide", "works", "process", "local"]
     R.shuffle(order)
 
     body = f"""  <main>
@@ -566,6 +586,27 @@ def city_cat_page(ck, cat):
         {gallery(photos, up)}
       </div>
     </section>
+    <section class="sec" id="about-area">
+      <div class="wrap"><div class="prose">
+        <h2>{E(city['name'])} {E(C['name'])}, {BRAND}에 맡기면</h2>
+        <p>{E(CITY_NOTE[ck])}</p>
+        <p>{E(fill(TYPE_NOTE[(cat, 'city')][1], pseudo, cat))}</p>
+        <p>{E(fill(TYPE_NOTE[(cat, 'town')][1], pseudo, cat))}</p>
+      </div></div>
+      <div class="wrap"><ul class="why-list">{''.join(f'<li><b>{E(t)}</b><span>{E(fill(x[2], pseudo, cat))}</span></li>' for t, x in WHY)}</ul></div>
+    </section>
+    <section class="sec sec-tint" id="guide">
+      <div class="wrap">
+        <div class="sec-head"><h2>{E(city['name'])} {E(C['short'])} 인테리어 준비 안내</h2><p>상담 전에 알아 두시면 좋은 내용입니다.</p></div>
+        <ul class="guide-list">{''.join(f'<li><h3>{E(t)}</h3><p>{E(fill(x[2], pseudo, cat))}</p></li>' for t, x in GUIDE[cat])}</ul>
+      </div>
+    </section>
+    <section class="sec" id="process">
+      <div class="wrap">
+        <div class="sec-head"><h2>{E(city['name'])} 인테리어 진행 과정</h2><p>첫 통화부터 완공 후 점검까지 같은 사람이 끝까지 챙깁니다.</p></div>
+        <ol class="steps">{''.join(f'<li><h3>{t}</h3><p>{E(v[2])}</p></li>' for t, v in STEP_V)}</ol>
+      </div>
+    </section>
 {faq_block(qas)}
 {contact_block(city['name'])}  </main>
 """
@@ -584,11 +625,14 @@ def city_hub(ck):
     rows = "".join(
         f'<li><b>{x[2]}</b><span><a href="{up}{url_dong(x, "residential")}">주거공간</a><a href="{up}{url_dong(x, "commercial")}">상업공간</a></span></li>'
         for x in dongs)
+    pseudo = (ck, "", city["name"], "", "", "", "")
+    hub_qas = [(fill(q, pseudo, c).replace(f"{city['name']} {city['name']}", city["name"]), fill(x, pseudo, c).replace(f"{city['name']} {city['name']}", city["name"]))
+               for c, q, x in [("residential",) + FAQ["residential"][0], ("commercial",) + FAQ["commercial"][0], ("residential",) + FAQ["residential"][2], ("commercial",) + FAQ["commercial"][2]]]
     crumbs = [("홈", ""), ("지역별 인테리어", "area/"), (f"{city['name']} 인테리어", None)]
     crumbs_view = [(n, up + u if u is not None else None) for n, u in crumbs]
     ld = {"@context": "https://schema.org", "@graph": [business_ld(),
-          {"@type": "CollectionPage", "@id": page_url + "#webpage", "url": page_url, "name": title, "description": desc, "inLanguage": "ko-KR"},
-          crumbs_ld(crumbs, page_url)]}
+          {"@type": "CollectionPage", "@id": page_url + "#webpage", "url": page_url, "name": title, "description": desc, "inLanguage": "ko-KR", "dateModified": TODAY},
+          crumbs_ld(crumbs, page_url), faq_ld(hub_qas, page_url)]}
     body = f"""  <main>
     <section class="sec area-index">
       <div class="wrap">
@@ -603,6 +647,22 @@ def city_hub(ck):
         <ul class="dong-table">{rows}</ul>
       </div>
     </section>
+    <section class="sec sec-tint" id="about-area">
+      <div class="wrap"><div class="prose">
+        <h2>{E(city['name'])} 인테리어 업체 {BRAND}</h2>
+        <p>{E(CITY_NOTE[ck])} {BRAND}은 {E(city['name'])}의 아파트·주택 리모델링과 상가·카페·음식점 인테리어를 모두 시공합니다.</p>
+        <p>{E(fill(INTRO['residential'][6], pseudo, 'residential'))}</p>
+        <p>{E(fill(INTRO['commercial'][6], pseudo, 'commercial'))}</p>
+        <p>{E(fill(TYPE_NOTE[('residential', 'town')][1], pseudo, 'residential'))}</p>
+      </div></div>
+    </section>
+    <section class="sec" id="works">
+      <div class="wrap">
+        <div class="sec-head"><h2>{E(city['name'])} 인테리어 시공 사례</h2><p>주거공간과 상업공간 사례입니다. 사진을 누르면 크게 볼 수 있습니다.</p></div>
+        {gallery(RES[:3] + COM[:3], up)}
+      </div>
+    </section>
+{faq_block(hub_qas)}
 {contact_block(city['name'])}  </main>
 """
     return head(title, desc, rel, up, place=f"{city['full']}, {city['prov_full']}", region=city["region"], jsonld=ld) + header(up) + body + footer(up)
@@ -639,6 +699,13 @@ def area_index():
         <p class="muted page-lede">시공하실 동네를 고르면 그 지역 주거공간·상업공간 인테리어 안내를 볼 수 있습니다.</p>
         {blocks}
       </div>
+    </section>
+    <section class="sec sec-tint" id="about-area">
+      <div class="wrap"><div class="prose">
+        <h2>천안·아산·당진·평택 인테리어 업체 {BRAND}</h2>
+        {''.join(f'<p>{E(CITY_NOTE[k])}</p>' for k in CITIES)}
+        <p>{BRAND}은 네 도시의 아파트·주택 리모델링과 상가·카페·음식점 인테리어를 대표 {CEO}가 직접 상담하고 시공합니다. 동네를 고르면 그 지역 안내와 시공 사례, 자주 묻는 질문을 볼 수 있습니다.</p>
+      </div></div>
     </section>
 {contact_block('천안·아산·당진·평택')}  </main>
 """
@@ -724,7 +791,7 @@ def main():
     items = []
     for u in urls:
         t, d = _t(u)
-        items.append(f"  <item><title>{t}</title><link>{SITE}/{u}</link><guid>{SITE}/{u}</guid><description>{d}</description><pubDate>Tue, 24 Nov 2026 00:00:00 +0900</pubDate></item>")
+        items.append(f"  <item><title>{t}</title><link>{SITE}/{u}</link><guid>{SITE}/{u}</guid><description>{d}</description><pubDate>Sat, 28 Nov 2026 00:00:00 +0900</pubDate></item>")
     write("rss.xml", '<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel>\n'
           f"  <title>{BRAND}</title><link>{SITE}/</link><description>천안·아산·당진·평택 주거공간·상업공간 인테리어</description><language>ko</language>\n"
           + "\n".join(items) + "\n</channel></rss>\n")
